@@ -25,4 +25,4 @@ RUN groupadd --system appuser \
 USER appuser
 
 EXPOSE 8080
-CMD ["uv", "run", "zendesk-http"]
+CMD ["/app/.venv/bin/zendesk-http"]
