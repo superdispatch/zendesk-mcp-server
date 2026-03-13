@@ -27,6 +27,8 @@ RUN pip install --no-cache-dir --no-deps .
 # Drop privileges for the runtime container
 USER appuser
 
-# Default command – stdio transport for local use
-# For Cloud Run, override with: CMD ["zendesk-http"]
-CMD ["zendesk"]
+# Cloud Run sets PORT env var (default 8080)
+ENV TRANSPORT=http
+EXPOSE 8080
+
+CMD ["zendesk-http"]

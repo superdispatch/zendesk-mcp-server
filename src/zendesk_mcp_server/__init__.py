@@ -7,4 +7,8 @@ def main():
     asyncio.run(server.main())
 
 
-__all__ = ["main", "server"]
+def main_http():
+    asyncio.run(server.main_http())
+
+
+__all__ = ["main", "main_http", "server"]

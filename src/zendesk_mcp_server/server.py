@@ -2,14 +2,20 @@ import asyncio
 import json
 import logging
 import os
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from typing import Any, Dict
 
+import uvicorn
 from cachetools.func import ttl_cache
 from dotenv import load_dotenv
-from mcp.server import InitializationOptions, NotificationOptions
-from mcp.server import Server, types
+import mcp.types as types
+from mcp.server import InitializationOptions, NotificationOptions, Server
 from mcp.server.stdio import stdio_server
+from mcp.server.streamable_http_manager import StreamableHTTPSessionManager
 from pydantic import AnyUrl
+from starlette.applications import Starlette
+from starlette.routing import Mount
 
 from zendesk_mcp_server.zendesk_client import ZendeskClient
 
@@ -438,5 +444,32 @@ async def main():
         )
 
 
+async def main_http():
+    """Run the server using Streamable HTTP transport for remote deployment."""
+    host = os.getenv("HOST", "0.0.0.0")
+    port = int(os.getenv("PORT", "8080"))
+
+    session_manager = StreamableHTTPSessionManager(app=server)
+
+    @asynccontextmanager
+    async def lifespan(app: Starlette) -> AsyncIterator[None]:
+        async with session_manager.run():
+            yield
+
+    app = Starlette(
+        routes=[Mount("/mcp", app=session_manager.handle_request)],
+        lifespan=lifespan,
+    )
+
+    config = uvicorn.Config(app, host=host, port=port, log_level="info")
+    http_server = uvicorn.Server(config)
+    logger.info(f"Starting Zendesk MCP HTTP server on {host}:{port}")
+    await http_server.serve()
+
+
 if __name__ == "__main__":
-    asyncio.run(main())
+    transport = os.getenv("TRANSPORT", "stdio")
+    if transport == "http":
+        asyncio.run(main_http())
+    else:
+        asyncio.run(main())
