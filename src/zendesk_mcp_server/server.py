@@ -28,11 +28,16 @@ logger = logging.getLogger("zendesk-mcp-server")
 logger.info("zendesk mcp server started")
 
 load_dotenv()
-zendesk_client = ZendeskClient(
-    subdomain=os.getenv("ZENDESK_SUBDOMAIN"),
-    email=os.getenv("ZENDESK_EMAIL"),
-    token=os.getenv("ZENDESK_API_KEY")
-)
+
+_subdomain = os.getenv("ZENDESK_SUBDOMAIN")
+_email = os.getenv("ZENDESK_EMAIL")
+_token = os.getenv("ZENDESK_API_KEY")
+
+zendesk_client = None
+if _subdomain and _email and _token:
+    zendesk_client = ZendeskClient(subdomain=_subdomain, email=_email, token=_token)
+else:
+    logger.warning("Zendesk credentials not configured. Set ZENDESK_SUBDOMAIN, ZENDESK_EMAIL, and ZENDESK_API_KEY.")
 
 server = Server("Zendesk Server")
 
@@ -284,6 +289,9 @@ async def handle_call_tool(
 ) -> list[types.TextContent]:
     """Handle Zendesk tool execution requests"""
     try:
+        if not zendesk_client:
+            raise ValueError("Zendesk credentials not configured. Set ZENDESK_SUBDOMAIN, ZENDESK_EMAIL, and ZENDESK_API_KEY env vars.")
+
         if READ_ONLY and name in WRITE_TOOLS:
             raise ValueError(f"Tool '{name}' is disabled in read-only mode")
 
