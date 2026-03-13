@@ -36,6 +36,10 @@ zendesk_client = ZendeskClient(
 
 server = Server("Zendesk Server")
 
+READ_ONLY = os.getenv("READ_ONLY", "false").lower() in ("true", "1", "yes")
+
+WRITE_TOOLS = {"create_ticket", "create_ticket_comment", "update_ticket"}
+
 TICKET_ANALYSIS_TEMPLATE = """
 You are a helpful Zendesk support analyst. You've been asked to analyze ticket #{ticket_id}.
 
@@ -130,8 +134,8 @@ async def handle_get_prompt(name: str, arguments: Dict[str, str] | None) -> type
 
 @server.list_tools()
 async def handle_list_tools() -> list[types.Tool]:
-    """List available Zendesk tools"""
-    return [
+    """List available Zendesk tools, filtered by READ_ONLY mode."""
+    tools = [
         types.Tool(
             name="get_ticket",
             description="Retrieve a Zendesk ticket by its ID",
@@ -267,6 +271,11 @@ async def handle_list_tools() -> list[types.Tool]:
         )
     ]
 
+    if READ_ONLY:
+        tools = [t for t in tools if t.name not in WRITE_TOOLS]
+
+    return tools
+
 
 @server.call_tool()
 async def handle_call_tool(
@@ -275,6 +284,9 @@ async def handle_call_tool(
 ) -> list[types.TextContent]:
     """Handle Zendesk tool execution requests"""
     try:
+        if READ_ONLY and name in WRITE_TOOLS:
+            raise ValueError(f"Tool '{name}' is disabled in read-only mode")
+
         if name == "get_ticket":
             if not arguments:
                 raise ValueError("Missing arguments")
