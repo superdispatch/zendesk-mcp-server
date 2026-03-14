@@ -1,14 +1,12 @@
-import asyncio
-
-from . import server
+from .server import mcp
 
 
 def main():
-    asyncio.run(server.main())
+    mcp.run(transport="stdio")
 
 
 def main_http():
-    asyncio.run(server.main_http())
+    mcp.run(transport="streamable-http")
 
 
-__all__ = ["main", "main_http", "server"]
+__all__ = ["main", "main_http", "mcp"]
