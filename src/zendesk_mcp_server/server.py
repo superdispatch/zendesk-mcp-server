@@ -64,6 +64,7 @@ def _build_auth_kwargs() -> dict:
         "auth": AuthSettings(
             issuer_url=AnyHttpUrl("https://accounts.google.com"),
             resource_server_url=AnyHttpUrl(RESOURCE_SERVER_URL),
+            required_scopes=["openid", "email"],
         ),
     }
 
