@@ -58,7 +58,6 @@ class ZendeskClient:
         req.add_header("Authorization", self.auth_header)
         req.add_header("Content-Type", "application/json")
 
-        last_error: urllib.error.HTTPError | None = None
         for attempt in range(1 + self._MAX_RETRIES):
             try:
                 with urllib.request.urlopen(req) as response:
@@ -76,11 +75,7 @@ class ZendeskClient:
                     attempt + 1,
                     self._MAX_RETRIES,
                 )
-                last_error = exc
                 time.sleep(retry_after)
-
-        # Should be unreachable, but just in case:
-        raise last_error  # type: ignore[misc]
 
     def get_ticket(self, ticket_id: int) -> Dict[str, Any]:
         """
@@ -332,8 +327,12 @@ class ZendeskClient:
         if type:
             parts.append(f"type:{type}")
         if filters:
+            operator_suffixes = {">", "<"}
             for key, value in filters.items():
-                parts.append(f"{key}:{value}")
+                if key[-1] in operator_suffixes:
+                    parts.append(f"{key}{value}")
+                else:
+                    parts.append(f"{key}:{value}")
 
         params = {
             "query": " ".join(parts),

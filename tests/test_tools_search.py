@@ -1,12 +1,13 @@
 """Tests for search tool registration and argument passing."""
 
 import json
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 from mcp.server.fastmcp import FastMCP
 
 from zendesk_mcp_server.tools.search import register
+from zendesk_mcp_server.zendesk_client import ZendeskClient
 
 
 @pytest.mark.asyncio
@@ -199,3 +200,37 @@ async def test_search_articles_calls_client_search_articles():
     assert parsed["count"] == 1
     assert parsed["page"] == 2
     assert parsed["has_more"] is False
+
+
+def test_search_date_filters_produce_correct_query_syntax():
+    """Date range filters like created> and created< must NOT have a colon
+    separator.  Zendesk expects ``created>2025-01-01``, not ``created>:2025-01-01``."""
+    with patch.object(ZendeskClient, "__init__", lambda self, *a, **kw: None):
+        client = ZendeskClient.__new__(ZendeskClient)
+        client.base_url = "https://test.zendesk.com/api/v2"
+        client.auth_header = "Basic fake"
+
+    # Capture the query string that _api_request would receive
+    captured: dict = {}
+
+    def fake_api_request(path, params=None):
+        captured["params"] = params
+        return {"results": [], "count": 0, "next_page": None, "previous_page": None}
+
+    client._api_request = fake_api_request
+
+    client.search(
+        query="billing",
+        type="ticket",
+        filters={"status": "open", "created>": "2025-01-01", "created<": "2025-06-01"},
+    )
+
+    query_str = captured["params"]["query"]
+    # Operator-based keys must NOT have a colon
+    assert "created>2025-01-01" in query_str
+    assert "created<2025-06-01" in query_str
+    # Regular keys must still have a colon
+    assert "status:open" in query_str
+    # Ensure the broken syntax is absent
+    assert "created>:" not in query_str
+    assert "created<:" not in query_str

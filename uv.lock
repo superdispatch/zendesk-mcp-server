@@ -787,6 +787,7 @@ dependencies = [
     { name = "httpx" },
     { name = "mcp" },
     { name = "python-dotenv" },
+    { name = "requests" },
     { name = "zenpy" },
 ]
 
@@ -802,6 +803,7 @@ requires-dist = [
     { name = "httpx", specifier = ">=0.28.0" },
     { name = "mcp", specifier = ">=1.23.0" },
     { name = "python-dotenv", specifier = ">=1.0.1" },
+    { name = "requests", specifier = ">=2.32.4" },
     { name = "zenpy", specifier = ">=2.0.56" },
 ]
 
