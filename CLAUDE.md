@@ -98,16 +98,42 @@ ZENDESK_SUBDOMAIN=test ZENDESK_EMAIL=test@test.com ZENDESK_API_KEY=fake \
 
 ## MCP Tools
 
-### Read tools (always available)
+### Tickets (read — always available)
 - `get_ticket` — retrieve a ticket by ID
 - `get_tickets` — list tickets with pagination
 - `get_ticket_comments` — get all comments for a ticket
 - `get_ticket_attachment` — fetch an attachment as base64
 
-### Write tools (hidden when `READ_ONLY=true`)
+### Tickets (write — hidden when `READ_ONLY=true`)
 - `create_ticket` — create a new ticket
 - `create_ticket_comment` — add a comment to a ticket
 - `update_ticket` — update ticket fields
+
+### Search (always available)
+- `search_tickets` — full-text ticket search with filters (status, assignee, group, tags, date range)
+- `search_users` — find users by name, email, role, organization
+- `search_organizations` — find organizations by name, tags
+- `search_articles` — search Help Center articles by keyword
+
+### Views (always available)
+- `get_views` — list available views (active, personal, shared)
+- `get_view_tickets` — get tickets in a specific view
+- `get_view_count` — get ticket count for a view
+
+### Metrics & SLAs (always available)
+- `get_ticket_metrics` — first reply time, resolution time, reopens, replies for a ticket
+- `get_sla_policies` — list all SLA policies and targets
+- `get_satisfaction_ratings` — CSAT scores with filters (score, date range)
+
+### Users & Organizations (always available)
+- `get_user` — get user details (role, org, groups)
+- `get_organization` — get organization details and metadata
+- `get_organization_tickets` — all tickets for an organization
+- `get_group_memberships` — agent groups and memberships
+
+### Activity (always available)
+- `get_agent_activity` — tickets handled by an agent in a time window
+- `get_ticket_audits` — full change history for a ticket
 
 ### Resources
 - `zendesk://knowledge-base` — Help Center articles (cached 1 hour)
