@@ -310,6 +310,68 @@ class ZendeskClient:
         except Exception as e:
             raise Exception(f"Failed to fetch knowledge base: {str(e)}")
 
+    def search(
+        self,
+        query: str,
+        type: str | None = None,
+        filters: dict | None = None,
+        sort_by: str = "relevance",
+        sort_order: str = "desc",
+        page: int = 1,
+    ) -> dict:
+        """
+        Search Zendesk using the unified Search API.
+
+        Builds a Zendesk query string from *query*, an optional *type* filter,
+        and an optional dict of additional filters (each appended as ``key:value``).
+
+        Returns the raw API response containing ``results``, ``count``,
+        ``next_page``, and ``previous_page``.
+        """
+        parts = [query]
+        if type:
+            parts.append(f"type:{type}")
+        if filters:
+            for key, value in filters.items():
+                parts.append(f"{key}:{value}")
+
+        params = {
+            "query": " ".join(parts),
+            "sort_by": sort_by,
+            "sort_order": sort_order,
+            "page": str(page),
+        }
+        return self._api_request("/search.json", params=params)
+
+    def search_articles(
+        self,
+        query: str,
+        locale: str | None = None,
+        category_id: int | None = None,
+        section_id: int | None = None,
+        page: int = 1,
+        per_page: int = 25,
+    ) -> dict:
+        """
+        Search Help Center articles via the Articles Search API.
+
+        Returns the raw API response containing ``results``, ``count``,
+        ``next_page``, and ``previous_page``.
+        """
+        params: dict[str, str] = {
+            "query": query,
+            "page": str(page),
+            "per_page": str(per_page),
+        }
+        if locale is not None:
+            params["locale"] = locale
+        if category_id is not None:
+            params["category"] = str(category_id)
+        if section_id is not None:
+            params["section"] = str(section_id)
+
+        return self._api_request("/help_center/articles/search.json", params=params)
+
     def create_ticket(
         self,
         subject: str,
