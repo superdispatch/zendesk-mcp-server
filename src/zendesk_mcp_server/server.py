@@ -1,7 +1,6 @@
 import json
 import logging
 import os
-from typing import Any, Dict, List
 
 from cachetools.func import ttl_cache
 from dotenv import load_dotenv
@@ -10,6 +9,7 @@ from mcp.server.fastmcp import FastMCP
 from pydantic import AnyHttpUrl
 
 from zendesk_mcp_server.auth import GoogleTokenVerifier
+from zendesk_mcp_server.tools.tickets import register as register_ticket_tools
 from zendesk_mcp_server.zendesk_client import ZendeskClient
 
 logging.basicConfig(
@@ -45,15 +45,6 @@ else:
     )
 
 
-def _require_client() -> ZendeskClient:
-    if not zendesk_client:
-        raise ValueError(
-            "Zendesk credentials not configured. "
-            "Set ZENDESK_SUBDOMAIN, ZENDESK_EMAIL, and ZENDESK_API_KEY env vars."
-        )
-    return zendesk_client
-
-
 # --- Auth (only when credentials are configured) ---
 def _build_auth_kwargs() -> dict:
     """Return auth kwargs for FastMCP if credentials are configured."""
@@ -78,126 +69,9 @@ mcp = FastMCP(
 )
 
 
-# --- Tools: Read ---
-@mcp.tool()
-def get_ticket(ticket_id: int) -> str:
-    """Retrieve a Zendesk ticket by its ID"""
-    client = _require_client()
-    return json.dumps(client.get_ticket(ticket_id))
-
-
-@mcp.tool()
-def get_tickets(
-    page: int = 1,
-    per_page: int = 25,
-    sort_by: str = "created_at",
-    sort_order: str = "desc",
-) -> str:
-    """Fetch the latest tickets with pagination support"""
-    client = _require_client()
-    return json.dumps(
-        client.get_tickets(
-            page=page, per_page=per_page, sort_by=sort_by, sort_order=sort_order
-        ),
-        indent=2,
-    )
-
-
-@mcp.tool()
-def get_ticket_comments(ticket_id: int) -> str:
-    """Retrieve all comments for a Zendesk ticket by its ID"""
-    client = _require_client()
-    return json.dumps(client.get_ticket_comments(ticket_id))
-
-
-@mcp.tool()
-def get_ticket_attachment(content_url: str) -> str:
-    """Fetch a Zendesk ticket attachment by its content_url and return as base64-encoded data.
-
-    Use the attachment URLs returned by get_ticket_comments.
-    """
-    client = _require_client()
-    result = client.get_ticket_attachment(content_url)
-    return json.dumps(
-        {"content_type": result["content_type"], "data_base64": result["data"]}
-    )
-
-
-# --- Tools: Write (conditional) ---
-if not READ_ONLY:
-
-    @mcp.tool()
-    def create_ticket(
-        subject: str,
-        description: str,
-        requester_id: int | None = None,
-        assignee_id: int | None = None,
-        priority: str | None = None,
-        type: str | None = None,
-        tags: List[str] | None = None,
-        custom_fields: List[Dict[str, Any]] | None = None,
-    ) -> str:
-        """Create a new Zendesk ticket"""
-        client = _require_client()
-        created = client.create_ticket(
-            subject=subject,
-            description=description,
-            requester_id=requester_id,
-            assignee_id=assignee_id,
-            priority=priority,
-            type=type,
-            tags=tags,
-            custom_fields=custom_fields,
-        )
-        return json.dumps(
-            {"message": "Ticket created successfully", "ticket": created}, indent=2
-        )
-
-    @mcp.tool()
-    def create_ticket_comment(
-        ticket_id: int, comment: str, public: bool = True
-    ) -> str:
-        """Create a new comment on an existing Zendesk ticket"""
-        client = _require_client()
-        result = client.post_comment(
-            ticket_id=ticket_id, comment=comment, public=public
-        )
-        return f"Comment created successfully: {result}"
-
-    @mcp.tool()
-    def update_ticket(
-        ticket_id: int,
-        subject: str | None = None,
-        status: str | None = None,
-        priority: str | None = None,
-        type: str | None = None,
-        assignee_id: int | None = None,
-        requester_id: int | None = None,
-        tags: List[str] | None = None,
-        custom_fields: List[Dict[str, Any]] | None = None,
-        due_at: str | None = None,
-    ) -> str:
-        """Update fields on an existing Zendesk ticket"""
-        client = _require_client()
-        fields = {
-            k: v
-            for k, v in {
-                "subject": subject,
-                "status": status,
-                "priority": priority,
-                "type": type,
-                "assignee_id": assignee_id,
-                "requester_id": requester_id,
-                "tags": tags,
-                "custom_fields": custom_fields,
-                "due_at": due_at,
-            }.items()
-            if v is not None
-        }
-        updated = client.update_ticket(ticket_id=ticket_id, **fields)
-        return json.dumps(
-            {"message": "Ticket updated successfully", "ticket": updated}, indent=2
-        )
+# --- Tools ---
+if zendesk_client:
+    register_ticket_tools(mcp, zendesk_client, read_only=READ_ONLY)
 
 
 # --- Prompts ---
@@ -241,8 +115,12 @@ def draft_ticket_response(ticket_id: str) -> str:
 # --- Resources ---
 @ttl_cache(ttl=3600)
 def _get_cached_kb():
-    client = _require_client()
-    return client.get_all_articles()
+    if not zendesk_client:
+        raise ValueError(
+            "Zendesk credentials not configured. "
+            "Set ZENDESK_SUBDOMAIN, ZENDESK_EMAIL, and ZENDESK_API_KEY env vars."
+        )
+    return zendesk_client.get_all_articles()
 
 
 @mcp.resource("zendesk://knowledge-base")
