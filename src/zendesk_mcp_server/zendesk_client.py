@@ -1,5 +1,8 @@
 from typing import Dict, Any, List
 import json
+import logging
+import time
+import urllib.error
 import urllib.request
 import urllib.parse
 import base64
@@ -8,6 +11,8 @@ import requests as _requests
 from zenpy import Zenpy
 from zenpy.lib.api_objects import Comment
 from zenpy.lib.api_objects import Ticket as ZenpyTicket
+
+logger = logging.getLogger(__name__)
 
 
 class ZendeskClient:
@@ -30,6 +35,52 @@ class ZendeskClient:
         credentials = f"{email}/token:{token}"
         encoded_credentials = base64.b64encode(credentials.encode()).decode('ascii')
         self.auth_header = f"Basic {encoded_credentials}"
+
+    _MAX_RETRIES = 3
+
+    def _api_request(self, path: str, params: dict | None = None) -> dict:
+        """
+        Make an authenticated GET request to the Zendesk API.
+
+        Builds the full URL from ``self.base_url + path``, appends optional
+        query *params*, and returns the parsed JSON response.
+
+        On HTTP 429 (rate-limited) the method reads the ``Retry-After`` header,
+        sleeps for the indicated duration, and retries up to ``_MAX_RETRIES``
+        times before re-raising the error.
+        """
+        url = self.base_url + path
+        if params:
+            query_string = urllib.parse.urlencode(params)
+            url = f"{url}?{query_string}"
+
+        req = urllib.request.Request(url)
+        req.add_header("Authorization", self.auth_header)
+        req.add_header("Content-Type", "application/json")
+
+        last_error: urllib.error.HTTPError | None = None
+        for attempt in range(1 + self._MAX_RETRIES):
+            try:
+                with urllib.request.urlopen(req) as response:
+                    return json.loads(response.read().decode())
+            except urllib.error.HTTPError as exc:
+                if exc.code != 429 or attempt >= self._MAX_RETRIES:
+                    error_body = exc.read().decode() if exc.fp else "No response body"
+                    raise Exception(
+                        f"Zendesk API error: HTTP {exc.code} - {exc.reason}. {error_body}"
+                    ) from exc
+                retry_after = int(exc.headers.get("Retry-After", "1"))
+                logger.warning(
+                    "Rate-limited (429). Retry-After %ss (attempt %d/%d)",
+                    retry_after,
+                    attempt + 1,
+                    self._MAX_RETRIES,
+                )
+                last_error = exc
+                time.sleep(retry_after)
+
+        # Should be unreachable, but just in case:
+        raise last_error  # type: ignore[misc]
 
     def get_ticket(self, ticket_id: int) -> Dict[str, Any]:
         """
@@ -190,24 +241,14 @@ class ZendeskClient:
             # Cap at reasonable limit
             per_page = min(per_page, 100)
 
-            # Build URL with parameters for offset pagination
             params = {
                 'page': str(page),
                 'per_page': str(per_page),
                 'sort_by': sort_by,
-                'sort_order': sort_order
+                'sort_order': sort_order,
             }
-            query_string = urllib.parse.urlencode(params)
-            url = f"{self.base_url}/tickets.json?{query_string}"
 
-            # Create request with auth header
-            req = urllib.request.Request(url)
-            req.add_header('Authorization', self.auth_header)
-            req.add_header('Content-Type', 'application/json')
-
-            # Make the API request
-            with urllib.request.urlopen(req) as response:
-                data = json.loads(response.read().decode())
+            data = self._api_request("/tickets.json", params=params)
 
             tickets_data = data.get('tickets', [])
 
@@ -237,9 +278,6 @@ class ZendeskClient:
                 'next_page': page + 1 if data.get('next_page') else None,
                 'previous_page': page - 1 if data.get('previous_page') and page > 1 else None
             }
-        except urllib.error.HTTPError as e:
-            error_body = e.read().decode() if e.fp else "No response body"
-            raise Exception(f"Failed to get latest tickets: HTTP {e.code} - {e.reason}. {error_body}")
         except Exception as e:
             raise Exception(f"Failed to get latest tickets: {str(e)}")
 
