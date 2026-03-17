@@ -372,6 +372,38 @@ class ZendeskClient:
 
         return self._api_request("/help_center/articles/search.json", params=params)
 
+    def get_views(self, page: int = 1, per_page: int = 25) -> dict:
+        """
+        List all shared and personal views available to the current user.
+
+        Returns the raw API response containing ``views``, ``count``,
+        ``next_page``, and ``previous_page``.
+        """
+        return self._api_request(
+            "/views.json",
+            params={"page": str(page), "per_page": str(per_page)},
+        )
+
+    def get_view_tickets(self, view_id: int, page: int = 1, per_page: int = 25) -> dict:
+        """
+        List tickets belonging to a specific view.
+
+        Returns the raw API response containing ``tickets``, ``count``,
+        ``next_page``, and ``previous_page``.
+        """
+        return self._api_request(
+            f"/views/{view_id}/tickets.json",
+            params={"page": str(page), "per_page": str(per_page)},
+        )
+
+    def get_view_count(self, view_id: int) -> dict:
+        """
+        Get the ticket count for a specific view.
+
+        Returns the raw API response containing ``view_count``.
+        """
+        return self._api_request(f"/views/{view_id}/count.json")
+
     def create_ticket(
         self,
         subject: str,

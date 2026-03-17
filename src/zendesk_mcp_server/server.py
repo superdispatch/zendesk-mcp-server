@@ -11,6 +11,7 @@ from pydantic import AnyHttpUrl
 from zendesk_mcp_server.auth import GoogleTokenVerifier
 from zendesk_mcp_server.tools.search import register as register_search_tools
 from zendesk_mcp_server.tools.tickets import register as register_ticket_tools
+from zendesk_mcp_server.tools.views import register as register_views_tools
 from zendesk_mcp_server.zendesk_client import ZendeskClient
 
 logging.basicConfig(
@@ -74,6 +75,7 @@ mcp = FastMCP(
 if zendesk_client:
     register_ticket_tools(mcp, zendesk_client, read_only=READ_ONLY)
     register_search_tools(mcp, zendesk_client)
+    register_views_tools(mcp, zendesk_client)
 
 
 # --- Prompts ---
