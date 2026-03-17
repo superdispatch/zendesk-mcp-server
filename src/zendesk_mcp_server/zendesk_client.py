@@ -503,6 +503,49 @@ class ZendeskClient:
             params={"page": str(page), "per_page": str(per_page)},
         )
 
+    def get_agent_activity(
+        self,
+        agent: str,
+        start_date: str | None = None,
+        end_date: str | None = None,
+        page: int = 1,
+    ) -> dict:
+        """
+        Search for tickets assigned to a specific agent.
+
+        Builds a Zendesk search query using ``assignee:{agent}`` and optional
+        date-range filters (``created>{start_date}``, ``created<{end_date}``).
+
+        Returns the raw Search API response.
+        """
+        parts = [f"assignee:{agent}", "type:ticket"]
+        if start_date:
+            parts.append(f"created>{start_date}")
+        if end_date:
+            parts.append(f"created<{end_date}")
+
+        params = {
+            "query": " ".join(parts),
+            "page": str(page),
+            "sort_by": "created_at",
+            "sort_order": "desc",
+        }
+        return self._api_request("/search.json", params=params)
+
+    def get_ticket_audits(
+        self, ticket_id: int, page: int = 1, per_page: int = 25
+    ) -> dict:
+        """
+        Get the audit log for a specific ticket.
+
+        Returns the raw API response containing ``audits``, ``count``,
+        ``next_page``, and ``previous_page``.
+        """
+        return self._api_request(
+            f"/tickets/{ticket_id}/audits.json",
+            params={"page": str(page), "per_page": str(per_page)},
+        )
+
     def create_ticket(
         self,
         subject: str,
