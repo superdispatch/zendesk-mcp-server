@@ -404,6 +404,49 @@ class ZendeskClient:
         """
         return self._api_request(f"/views/{view_id}/count.json")
 
+    def get_ticket_metrics(self, ticket_id: int) -> dict:
+        """
+        Get metrics for a specific ticket.
+
+        Returns the raw API response containing ``ticket_metric``.
+        """
+        return self._api_request(f"/tickets/{ticket_id}/metrics.json")
+
+    def get_sla_policies(self) -> dict:
+        """
+        List all SLA policies.
+
+        Returns the raw API response containing ``sla_policies``.
+        """
+        return self._api_request("/slas/policies.json")
+
+    def get_satisfaction_ratings(
+        self,
+        score: str | None = None,
+        start_time: str | None = None,
+        end_time: str | None = None,
+        page: int = 1,
+        per_page: int = 25,
+    ) -> dict:
+        """
+        List satisfaction ratings with optional filters.
+
+        Returns the raw API response containing ``satisfaction_ratings``,
+        ``count``, ``next_page``, and ``previous_page``.
+        """
+        params: dict[str, str] = {
+            "page": str(page),
+            "per_page": str(per_page),
+        }
+        if score is not None:
+            params["score"] = score
+        if start_time is not None:
+            params["start_time"] = start_time
+        if end_time is not None:
+            params["end_time"] = end_time
+
+        return self._api_request("/satisfaction_ratings.json", params=params)
+
     def create_ticket(
         self,
         subject: str,
