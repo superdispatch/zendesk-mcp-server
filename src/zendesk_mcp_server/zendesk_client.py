@@ -447,6 +447,62 @@ class ZendeskClient:
 
         return self._api_request("/satisfaction_ratings.json", params=params)
 
+    def get_user(self, user_id: int) -> dict:
+        """
+        Get a Zendesk user by ID.
+
+        Returns the raw API response containing ``user``.
+        """
+        return self._api_request(f"/users/{user_id}.json")
+
+    def get_organization(self, organization_id: int) -> dict:
+        """
+        Get a Zendesk organization by ID.
+
+        Returns the raw API response containing ``organization``.
+        """
+        return self._api_request(f"/organizations/{organization_id}.json")
+
+    def get_organization_tickets(
+        self, organization_id: int, page: int = 1, per_page: int = 25
+    ) -> dict:
+        """
+        List tickets belonging to a specific organization.
+
+        Returns the raw API response containing ``tickets``, ``count``,
+        ``next_page``, and ``previous_page``.
+        """
+        return self._api_request(
+            f"/organizations/{organization_id}/tickets.json",
+            params={"page": str(page), "per_page": str(per_page)},
+        )
+
+    def get_groups(self, page: int = 1, per_page: int = 25) -> dict:
+        """
+        List all groups.
+
+        Returns the raw API response containing ``groups``, ``count``,
+        ``next_page``, and ``previous_page``.
+        """
+        return self._api_request(
+            "/groups.json",
+            params={"page": str(page), "per_page": str(per_page)},
+        )
+
+    def get_group_memberships(
+        self, group_id: int, page: int = 1, per_page: int = 25
+    ) -> dict:
+        """
+        List memberships for a specific group.
+
+        Returns the raw API response containing ``group_memberships``,
+        ``count``, ``next_page``, and ``previous_page``.
+        """
+        return self._api_request(
+            f"/groups/{group_id}/memberships.json",
+            params={"page": str(page), "per_page": str(per_page)},
+        )
+
     def create_ticket(
         self,
         subject: str,

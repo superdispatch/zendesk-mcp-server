@@ -13,6 +13,7 @@ from zendesk_mcp_server.tools.search import register as register_search_tools
 from zendesk_mcp_server.tools.tickets import register as register_ticket_tools
 from zendesk_mcp_server.tools.views import register as register_views_tools
 from zendesk_mcp_server.tools.metrics import register as register_metrics_tools
+from zendesk_mcp_server.tools.users import register as register_users_tools
 from zendesk_mcp_server.zendesk_client import ZendeskClient
 
 logging.basicConfig(
@@ -78,6 +79,7 @@ if zendesk_client:
     register_search_tools(mcp, zendesk_client)
     register_views_tools(mcp, zendesk_client)
     register_metrics_tools(mcp, zendesk_client)
+    register_users_tools(mcp, zendesk_client)
 
 
 # --- Prompts ---
